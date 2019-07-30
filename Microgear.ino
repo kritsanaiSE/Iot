@@ -88,11 +88,14 @@ void loop() {
 
     if (timer >= 1000) {
       Serial.println("Publish...");
-
-
       
-      String str = "{\"alias\":\"" + ALIAS + "\",\"temperature\": 25, \"humidity\": 60,\"switch\": 0 }";
-
+      String str = "{";
+      str+="\"alias\":\"" + String(ALIAS) + "\"";
+      str+=",\"temperature\":"+String(30);
+      str+=",\"humidity\":"+String(-1);
+      str+=",\"switch\":"+String(io18);
+      str+="}";
+      
       char msg[str.length() + 1];
       str.toCharArray(msg, str.length() + 1);
       
