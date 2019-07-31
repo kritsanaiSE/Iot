@@ -1,5 +1,8 @@
 #include "MicroGear.h"
 #include "WiFi.h"
+#include <Wire.h>
+
+#define LM73_ADDR 0x4D //IO PIN SENSOR Temperature
 
 const char* ssid     = "SSID";
 const char* password = "PASSWORD";
@@ -20,6 +23,17 @@ void onMsghandler(char *topic, uint8_t* msg, unsigned int msglen) {
   Serial.print("Incoming message --> ");
   msg[msglen] = '\0';
   Serial.println((char *)msg);
+  
+  char res[msglen];
+  for(int i= 0; i< msglen; i++){
+    res[i]=(char)msg[i];
+  }
+  if(String(res[0]) == "1"){
+    digitalWrite(17,HIGH); //PIN17
+  }
+  else{
+    digitalWrite(17,LOW); //PIN17
+  }
 }
 
 void onFoundgear(char *attribute, uint8_t* msg, unsigned int msglen) {
@@ -61,7 +75,9 @@ void setup() {
 
   Serial.begin(115200);
   Serial.println("Starting...");
-
+  
+  pinMode(17. OUTPUT);
+  Wire1.begin(4, 5);
   /* Initial WIFI, this is just a basic method to configure WIFI on ESP8266.                       */
   /* You may want to use other method that is more complicated, but provide better user experience */
   if (WiFi.begin(ssid, password)) {
@@ -89,11 +105,12 @@ void loop() {
     if (timer >= 1000) {
       Serial.println("Publish...");
       
+      bool io18 = digitalRead(17); //pin 17
       String str = "{";
       str+="\"alias\":\"" + String(ALIAS) + "\"";
-      str+=",\"temperature\":"+String(30);
+      str+=",\"temperature\":"+String(readTemperature());
       str+=",\"humidity\":"+String(-1);
-      str+=",\"switch\":"+String(1);
+      str+=",\"switch\":"+String(io18);
       str+="}";
       
       char msg[str.length() + 1];
@@ -114,4 +131,24 @@ void loop() {
     else timer += 100;
   }
   delay(100);
+}
+
+float readTemperature() {
+  Wire1.beginTransmission(LM73_ADDR);
+  Wire1.write(0x00); // Temperature Data Register
+  Wire1.endTransmission();
+  
+  uint8_t count = Wire1.requestFrom(LM73_ADDR, 2);
+  float temp = 0.0;
+  if (count == 2) {
+    byte buff[2];
+    buff[0] = Wire1.read();
+    buff[1] = Wire1.read();
+    temp += (int)(buff[0]<<1);
+    if (buff[1]&0b10000000) temp += 1.0;
+    if (buff[1]&0b01000000) temp += 0.5;
+    if (buff[1]&0b00100000) temp += 0.25;
+    if (buff[0]&0b10000000) temp *= -1.0;
+  }
+  return temp;
 }
