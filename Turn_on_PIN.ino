@@ -5,5 +5,5 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  digitalWrite(17, HIGH); // สั่งให้ PIN ทำงาน HIGH=เปิด LOW=ปิด
+  digitalWrite(17, LOW); // สั่งให้ PIN ทำงาน HIGH=เปิด LOW=ปิด
 }
