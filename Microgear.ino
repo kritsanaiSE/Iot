@@ -93,7 +93,7 @@ void loop() {
       str+="\"alias\":\"" + String(ALIAS) + "\"";
       str+=",\"temperature\":"+String(30);
       str+=",\"humidity\":"+String(-1);
-      str+=",\"switch\":"+String(io18);
+      str+=",\"switch\":"+String(1);
       str+="}";
       
       char msg[str.length() + 1];
