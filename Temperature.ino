@@ -32,6 +32,6 @@ void setup() {
 
 void loop() {
   Serial.print("Temperature: ");
-  Serial.println(readTemperature(), 2);
+  Serial.println(readTemperature());
   delay(500);
 }
