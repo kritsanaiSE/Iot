@@ -76,7 +76,8 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Starting...");
   
-  pinMode(17. OUTPUT);
+  pinMode(17, OUTPUT);
+  
   Wire1.begin(4, 5);
   /* Initial WIFI, this is just a basic method to configure WIFI on ESP8266.                       */
   /* You may want to use other method that is more complicated, but provide better user experience */
