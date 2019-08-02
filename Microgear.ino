@@ -4,14 +4,47 @@
 
 #define LM73_ADDR 0x4D //IO PIN SENSOR Temperature
 
-const char* ssid     = "SSID";
-const char* password = "PASSWORD";
+const char* ssid     = "WiFi Name";
+const char* password = "WiFi Password";
 
-#define APPID   "APPID"
-#define KEY     "KEY"
-#define SECRET  "SECRET"
-#define ALIAS   "esp32"
-#define TARGET  "app"
+// //GROUP1
+//#define APPID   "group1"
+//#define KEY     "PsGFO2OLpFavFsO"
+//#define SECRET  "CIl2shQ9hlhv14x1WBOJiQjDZ"
+//#define ALIAS   "esp32"///
+//#define TARGET  "app"///
+
+
+ //GROUP2
+//#define APPID   "group2"
+//#define KEY     "ZFmdSpOAD4bKcxp"
+//#define SECRET  "xIOWsfS5BwQXMLyx0GMQE4hCO"
+//#define ALIAS   "esp32"///
+//#define TARGET  "app"///
+
+
+ //GROUP3
+//#define APPID   "group3"
+//#define KEY     "HaYtylh5enoWFHF"
+//#define SECRET  "CgHRok1WuBu1AiI5rLv5PdXUP"
+//#define ALIAS   "esp32"///
+//#define TARGET  "app"///
+
+
+ //GROUP4
+//#define APPID   "group40"
+//#define KEY     "YaD8QBgX8GgDKfY"
+//#define SECRET  "M1bnCIpnBxOegf2lL4TvrXO6T"
+//#define ALIAS   "esp32"///
+//#define TARGET  "app"///
+
+
+ //GROUP5
+//#define APPID   "group5"
+//#define KEY     "RSsX9LfomEcxJVZ"
+//#define SECRET  "K6QnZv3FT5c6GtH3A4inACDC8"
+//#define ALIAS   "esp32"///
+//#define TARGET  "app"///
 
 WiFiClient client;
 MicroGear microgear(client);
