@@ -1,0 +1,260 @@
+#include <WiFi.h>
+#include <MicroGear.h>
+#include <Wire.h>
+#include <ArduinoJson.h>
+#include <HTTPClient.h>
+
+const char* ssid = "ssid"; //////////////////////////////////////
+const char* password = "pass"; //////////////////////////////////////
+
+//Device KEY
+#define APPID   "APPID" //////////////////////////////////////
+#define KEY     "KEY" //////////////////////////////////////
+#define SECRET  "SCRET" //////////////////////////////////////
+
+char* ALIAS; //getChipId(); //// for Kidbrigth or Chip Serial id
+//char* ALIAS = "Name Alias"; // Other
+
+#define PIN_TEMP 0x4D //IO PIN SENSOR Temperature
+#define LED_PIN 17
+
+String getId(){
+  uint64_t chipid = ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
+  String id_temp = String((uint16_t)(chipid>>32), HEX) + String((uint32_t)chipid, HEX);
+  String id = "";
+  for(int i = id_temp.length()-1; i >= 0; i-=2){
+    id += id_temp[i-1];
+    id += id_temp[i];
+  }
+  return id;
+}
+
+WiFiClient client;
+MicroGear microgear(client);
+
+long _timer = 0;
+long _timer_log = 0;
+long _delay = 500;
+bool reconnect = false;
+
+float _temperature_max = 100.00;
+float _temperature_min = 0.00;
+float _humidity_max = 100.00;
+float _humidity_min = 0.00;
+
+void onMsghandler(char *topic, uint8_t* msg, unsigned int msglen) {
+    String iMsg = "";
+    for (int i=0;i<msglen;i++) iMsg += (char)msg[i];
+
+    Serial.println("MSG");
+    Serial.println(topic);
+    Serial.println(iMsg);
+
+    DynamicJsonBuffer jsonBuffer;
+    JsonObject& data = jsonBuffer.parseObject(iMsg);
+
+    boolean s = data["switch"];
+//    Serial.println(s);
+    digitalWrite(LED_PIN, s);
+
+    _temperature_max = data["temperature"]["max"];
+    _temperature_min = data["temperature"]["min"];
+
+    _humidity_max = data["humidity"]["max"];
+    _humidity_min = data["humidity"]["min"];
+
+    
+}
+
+void onConnected(char *attribute, uint8_t* msg, unsigned int msglen) {
+    Serial.println("Connected to NETPIE...");
+//    microgear.setName(ALIAS);
+      String str_room = "/" + String(ALIAS) + "/" + String(ALIAS);
+      char _room[str_room.length() + 1];
+      str_room.toCharArray(_room, str_room.length() + 1);
+      microgear.subscribe(_room);
+}
+
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  
+  Serial.begin(115200);
+  delay(10);
+
+  Wire1.begin(4,5);
+
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+
+  String alias_temp = getId();
+  ALIAS = new char[alias_temp.length() + 1];
+  alias_temp.toCharArray(ALIAS, alias_temp.length() + 1);
+  
+  Serial.println(ALIAS);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+  
+  /* Event listener */
+  microgear.on(MESSAGE,onMsghandler);
+  microgear.on(CONNECTED,onConnected);
+  
+  microgear.init(KEY,SECRET,ALIAS);
+
+}
+
+
+
+void loop() {
+  if (microgear.connected()) {
+//    Serial.println("connected");
+
+    microgear.loop();
+
+    if (_timer >= 5000) {
+
+      float temperature = readTemperature();
+      float humidity = -1;
+    
+      boolean check = false;
+      
+      Serial.println(_temperature_max);
+      Serial.println(_temperature_min);
+      Serial.println(temperature);
+      
+      if((temperature >= _temperature_max) || (_temperature_min >= temperature)){
+        check = check == false ? true : check;
+      }
+//      for kidbrigth
+//      if((humidity >= _humidity_max) || (_humidity_min >= humidity)){        
+//        check = check == false ? true : check;
+//      }
+      if(check){
+        digitalWrite(LED_PIN, LOW);
+        if(_timer_log >= 60000){
+            String temperature_cond = ">=" + String(_temperature_max) + "/<=" + String(_temperature_min);
+            String humidity_cond = ">=" + String(_humidity_max) + "/<=" + String(_humidity_min);
+            logs(temperature, humidity, temperature_cond, humidity_cond);
+            _timer_log = 0;
+        }
+      }else{
+        digitalWrite(LED_PIN, HIGH);
+      }
+
+      String str = "{";
+      str+="\"alias\":\"" + String(ALIAS) + "\"";
+      str+=",\"temperature\":{";
+      str+="\"max\":" + String(_temperature_max);
+      str+=",\"min\":" + String(_temperature_min);
+      str+=",\"current\":" + String(temperature);
+      str+="},\"humidity\":{";
+      str+="\"max\":" + String(_humidity_max);
+      str+=",\"min\":" + String(_humidity_min);
+      str+=",\"current\":" + String(humidity);
+      str+="},\"switch\":" + String(digitalRead(LED_PIN));
+      str+="}";
+      
+      char msg[str.length() + 1];
+      str.toCharArray(msg, str.length() + 1);
+      
+      /* Chat with the microgear named ALIAS which is myself */
+      String str_room = "/" + String(ALIAS) + "/" + String(ALIAS);
+      char _room[str_room.length() + 1];
+      str_room.toCharArray(_room, str_room.length() + 1);
+      
+      microgear.publish(_room, msg);
+      _timer_log += _timer;
+      _timer = 0;
+    }
+    else _timer += _delay;
+  }
+  else {
+    Serial.println("connection lost, reconnect...");
+    if (_timer >= 5000) {
+      microgear.connect(APPID);
+      _timer = 0;
+    }
+    else _timer += _delay;
+  }
+  delay(_delay);
+}
+
+float readTemperature() {
+  Wire1.beginTransmission(PIN_TEMP);
+  Wire1.write(0x00); // Temperature Data Register
+  Wire1.endTransmission();
+  
+  uint8_t count = Wire1.requestFrom(PIN_TEMP, 2);
+  float temp = 0.0;
+  if (count == 2) {
+    byte buff[2];
+    buff[0] = Wire1.read();
+    buff[1] = Wire1.read();
+    temp += (int)(buff[0]<<1);
+    if (buff[1]&0b10000000) temp += 1.0;
+    if (buff[1]&0b01000000) temp += 0.5;
+    if (buff[1]&0b00100000) temp += 0.25;
+    if (buff[0]&0b10000000) temp *= -1.0;
+  }
+  return temp;
+}
+
+String POST(char* param, String url){
+  String response = "";
+  
+  HTTPClient http;
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  int httpCode = http.POST(param);
+  
+  // httpCode will be negative on error
+  if (httpCode > 0) {
+    Serial.printf("[HTTP] POST... code: %d\n", httpCode);
+    // file found at server
+    if (httpCode == HTTP_CODE_OK) {
+      response = http.getString();
+      Serial.println(response);
+    }
+  } else {
+    Serial.printf("[HTTP] POST... failed, error: %s\n", http.errorToString(httpCode).c_str());
+    Serial.println(httpCode);
+  }
+  http.end();
+  return response;
+}
+
+void logs(float _temperature, float _humidity, String _temperature_condition, String _humidity_condition){
+  
+    StaticJsonBuffer<500> json;
+        
+    //temperature
+    JsonObject& temperature_ = json.createObject();
+    temperature_["log_value"] = _temperature;//id _chip
+    temperature_["log_condition"] = _temperature_condition;
+
+    //humidity
+    JsonObject& humidity_ = json.createObject();
+    humidity_["log_value"] = _humidity;//id _chip
+    humidity_["log_condition"] = _humidity_condition;
+   
+    /////msg 
+    JsonObject& param = json.createObject();
+    param["iot_serial"] = ALIAS;//id _chip
+    param["temperature"] = temperature_;
+    param["humidity"] = humidity_;
+    
+    char message[500];
+    param.prettyPrintTo(message, sizeof(message));
+    Serial.println(message);
+    String response = POST(message, "https://chaokaset.openservice.in.th/index.php/iot/addlog_iot");
+}
